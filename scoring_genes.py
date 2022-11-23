@@ -24,10 +24,14 @@ def compute_density(chosen_replaced, network):
     get the number of connections from network (direct neighbors)
     '''
     gene_pairs = [(a, b) for idx, a in enumerate(chosen_replaced) for b in chosen_replaced[idx + 1:]]
-    density = 0
-    for gene_pair in gene_pairs:
-        edge_count = network.find_edge(gene_pair[0], gene_pair[1])
-        density = density + edge_count
+    #density = 0
+    network_interactions = network.network_interactions
+    #subnetwork_interactions = [element for element in gene_pairs if element in network_interactions]
+    subnetwork_interactions = list(set(gene_pairs) & set(network_interactions))
+    density = len(subnetwork_interactions)
+    #for gene_pair in gene_pairs:
+        #edge_count = network.find_edge(gene_pair[0], gene_pair[1])
+        #density = density + edge_count
 
     return density
 

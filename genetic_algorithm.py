@@ -12,7 +12,7 @@ def sol_locus_tomutate(solutions, percent_mutation=5):
     for locus in range(len(solutions.loci_set.keys())): # locus = 0,1,2,..,12 
         num_to_mutate = int((percent_mutation/100) * num_sols)
         #random.seed(6)
-        mut_sol_indices = random.sample([k for k in range(1,5001)], k=num_to_mutate)
+        mut_sol_indices = random.sample([k for k in range(1,num_sols+1)], k=num_to_mutate)
         loci_indices[locus] = mut_sol_indices # value = list of distinct random indices of sols
     return loci_indices
 
@@ -33,44 +33,64 @@ def mutation(solutions, percent_mutation=5):
             mutated_gene = random.choices(locus_candiates_removed,k=1)
             chosen_genes[sol_index][locus] = mutated_gene
     # {sol_indices:[[chosen genes at locus0],...,[chosen genes at locus11]]}
-    mutated_chosen_genes = chosen_genes
+    mutated_chosen_genes = dict(zip([k for k in range(1,len(chosen_genes)+1)], chosen_genes))
     return mutated_chosen_genes 
 
 def compute_sol_prob(mutated_chosen_genes, network):
     # dict to store normalized cubed density for each subnetwork 
     # where keys: solution numbers, values: normalized probabilities in range(0,1)
+    sols_density_dict = {}
     sols_prob_dict = {}
-    for sol_index in mutated_chosen_genes.keys():
+    for sol_index in range(1,len(mutated_chosen_genes)+1):
         sol_mutated_chosen = mutated_chosen_genes[sol_index]
         density = compute_density(sol_mutated_chosen, network)
+        sols_density_dict[sol_index] = density
         sols_prob_dict[sol_index] = density**3
     sum_cubed_density = sum(sols_prob_dict.values())
     sols_prob_dict = {sol_index: cubed_density / sum_cubed_density for sol_index,cubed_density in sols_prob_dict.items()}
-    return sols_prob_dict
+    return sols_density_dict, sols_prob_dict
 
-def mating(mutated_chosen_genes, sols_prob_dict):
+def mating(mutated_chosen_genes, sols_prob_dict, network):
     num_solutions = len(sols_prob_dict)
     solution_indices = list(sols_prob_dict.keys())
     weights_prob = list(sols_prob_dict.values())
     # for each iteration, randomly select a pair of sols for num_solutions times
     sols_after_mating = {}
-    for itr in range(num_solutions): 
+    mated_density_dict = {}
+    for itr_sol in range(1,num_solutions+1): 
         # choose a pair of solutions: list of two sol indices
-        random_sol_pair = random.choices(solution_indices,weights_prob,2)
+        random_sol_pair = random.choices(solution_indices,weights=weights_prob,k=2)
         # sampled_sol_pairs.append(random_sol_pair) # [[sol1,sol10],...,[sol500,sol29]]
         # get mutated genes of all the loci in the two random sols
         mating_res = []
         for locus in range(len(mutated_chosen_genes[1])):
             # choose which solution to get a representative gene from 
-            sol_choice = random.choices(random_sol_pair,k=2)
-            mating_res.append(random.choices(mutated_chosen_genes[sol_choice][locus],1))
-        sols_after_mating[itr+1] = mating_res # {sol1:mated_genes,...}
+            sol_choice = random.choices(random_sol_pair,k=1)
+            selected_gene = mutated_chosen_genes[sol_choice][locus]
+            mating_res.append(selected_gene)
+        density = compute_density(mating_res, network)
+        mated_density_dict[itr_sol] = density
+        sols_after_mating[itr_sol] = mating_res # {sol1:mated_genes,...}
     
-    return sols_after_mating
+    return mated_density_dict, sols_after_mating
 
-def genetic_algorithm(solutions, percent_mutation=5):
-    # the recurring procedures of the mutation and mating steps
-    # mutation step
-    # mating step 
-    pass
+def genetic_algorithm(solutions, network, percent_mutation=5):
+    for i in range(100):
+        # the recurring procedures of the mutation and mating steps
+        # mutation step
+        mutated_chosen_genes = mutation(solutions, percent_mutation)
+        # mating step 
+        sols_density_dict, sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
+        # compute average density of the parent generation
+        prev_gen_avgdensity = sum(list(sols_density_dict.values()))/len(sols_density_dict.keys())
+        mated_density_dict, sols_after_mating = mating(mutated_chosen_genes, sols_prob_dict, network)
+        # compute average density of the new generation after applying GA
+        new_gen_avgdensity = sum(list(mated_density_dict.values()))/len(mated_density_dict.keys())
+        if ((new_gen_avgdensity - prev_gen_avgdensity) < 0.005*prev_gen_avgdensity):
+            break
+        else:
+            solutions = sols_after_mating
+            continue
+    return solutions
+    
 
