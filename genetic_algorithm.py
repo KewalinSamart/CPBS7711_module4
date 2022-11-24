@@ -25,13 +25,12 @@ def mutation(solutions, percent_mutation=5):
     # get candidate genes from the same locus from solutions.loci_set
     for locus in range(len(solutions.loci_set.keys())):
         locus_candidates = solutions.loci_set[locus]
-        print(locus_candidates)
+        #print(locus_candidates)
         for sol_index in loci_indices[locus]:
-            # pick a gene from the same locus for mutation 
-            print(chosen_genes[sol_index-1][locus])
-            locus_candiates_removed = list(set(locus_candidates) - set([chosen_genes[sol_index-1][locus]]))
-            mutated_gene = random.choices(locus_candiates_removed,k=1)
-            chosen_genes[sol_index][locus] = mutated_gene
+            current_chosen_gene = chosen_genes[sol_index-1][locus]
+            locus_candiates_removed = list(set(locus_candidates) - set(current_chosen_gene))
+            mutated_gene = random.choices(locus_candiates_removed,k=1)[0]
+            chosen_genes[sol_index-1][locus] = mutated_gene
     # {sol_indices:[[chosen genes at locus0],...,[chosen genes at locus11]]}
     mutated_chosen_genes = dict(zip([k for k in range(1,len(chosen_genes)+1)], chosen_genes))
     return mutated_chosen_genes 
@@ -39,16 +38,14 @@ def mutation(solutions, percent_mutation=5):
 def compute_sol_prob(mutated_chosen_genes, network):
     # dict to store normalized cubed density for each subnetwork 
     # where keys: solution numbers, values: normalized probabilities in range(0,1)
-    sols_density_dict = {}
     sols_prob_dict = {}
     for sol_index in range(1,len(mutated_chosen_genes)+1):
         sol_mutated_chosen = mutated_chosen_genes[sol_index]
         density = compute_density(sol_mutated_chosen, network)
-        sols_density_dict[sol_index] = density
         sols_prob_dict[sol_index] = density**3
     sum_cubed_density = sum(sols_prob_dict.values())
     sols_prob_dict = {sol_index: cubed_density / sum_cubed_density for sol_index,cubed_density in sols_prob_dict.items()}
-    return sols_density_dict, sols_prob_dict
+    return sols_prob_dict
 
 def mating(mutated_chosen_genes, sols_prob_dict, network):
     num_solutions = len(sols_prob_dict)
@@ -66,7 +63,7 @@ def mating(mutated_chosen_genes, sols_prob_dict, network):
         for locus in range(len(mutated_chosen_genes[1])):
             # choose which solution to get a representative gene from 
             sol_choice = random.choices(random_sol_pair,k=1)
-            selected_gene = mutated_chosen_genes[sol_choice][locus]
+            selected_gene = mutated_chosen_genes[sol_choice[0]][locus]
             mating_res.append(selected_gene)
         density = compute_density(mating_res, network)
         mated_density_dict[itr_sol] = density
@@ -75,22 +72,29 @@ def mating(mutated_chosen_genes, sols_prob_dict, network):
     return mated_density_dict, sols_after_mating
 
 def genetic_algorithm(solutions, network, percent_mutation=5):
+    prev_gen_avgdensity = 0.0 
+    density_list =[prev_gen_avgdensity]
     for i in range(100):
         # the recurring procedures of the mutation and mating steps
         # mutation step
         mutated_chosen_genes = mutation(solutions, percent_mutation)
+        print("Mutation step completed; iteration: ", i)
         # mating step 
-        sols_density_dict, sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
-        # compute average density of the parent generation
-        prev_gen_avgdensity = sum(list(sols_density_dict.values()))/len(sols_density_dict.keys())
+        sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
         mated_density_dict, sols_after_mating = mating(mutated_chosen_genes, sols_prob_dict, network)
+        print("Mating step completed; iteration: ", i)
+        print("Parent generation avg density: ",prev_gen_avgdensity)
         # compute average density of the new generation after applying GA
         new_gen_avgdensity = sum(list(mated_density_dict.values()))/len(mated_density_dict.keys())
+        density_list.append(new_gen_avgdensity)
+        print("New generation avg density: ",new_gen_avgdensity)
+        # compare average densities of the new and parent generations
         if ((new_gen_avgdensity - prev_gen_avgdensity) < 0.005*prev_gen_avgdensity):
             break
         else:
-            solutions = sols_after_mating
+            solutions.chosen_genes = list(sols_after_mating.values())
+            prev_gen_avgdensity = new_gen_avgdensity 
             continue
-    return solutions
+    return density_list, mated_density_dict, solutions
     
 
