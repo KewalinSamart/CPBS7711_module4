@@ -8,9 +8,39 @@ network = Network("STRING_network.txt")
 #chosen_genes_df.to_csv("toyexample_solution", header=[0,1,2,3,4,5,6,7,8,9,10,11], index=None, sep='\t', mode='a')
 
 chosen_genes, loci_candidate_dict,  annotated_candidate_dict = read_in_solutions('example_solution_cut.txt')
-solutions = PFsolutions(loci_candidate_dict,  annotated_candidate_dict, chosen_genes)
-#print(solutions.chosen_genes)
+solutions = PFsolutions(loci_candidate_dict,  annotated_candidate_dict, chosen_genes, 200)
+init_sol = solutions 
+avgdensity_list, finalGA_density_dict, solutions = genetic_algorithm(solutions, network, percent_mutation=5)
+print(init_sol.chosen_genes == solutions.chosen_genes)
+# create a dataframe of generation and 
+gen_indices = [i for i in range(0,len(avgdensity_list)+1)]
+gen_avgdensity = list(zip(gen_indices,avgdensity_list))
+gen_avgdensity_df = pd.DataFrame(gen_avgdensity, columns=['generations','avg_density'])
+gen_avgdensity_df.to_csv("gen_avgdensities.txt", header=['generations','avg_density'], index=None, sep='\t', mode='a')
+optimized_sols = list(solutions.chosen_genes.values()) # list of lists of chosen genes optimized by GA
+optimized_sols_df = pd.DataFrame(optimized_sols, columns = [i for i in range(len(optimized_sols[0]))])
+optimized_sols_df['density'] = list(finalGA_density_dict.values())
+optimized_sols_df = optimized_sols_df.sort_values(by = 'density')
+header = [i for i in range(len(optimized_sols[0]))]
+header.append('density')
+optimized_sols_df.to_csv("GAoptimized_sols.txt", header=header, index=None, sep='\t', mode='a')
 
+# output two dataframes
+# (i) generation, density (column names)
+# (ii) locus indices, density (column names), entries: optimized chosen genes, density values 
+
+
+#print(solutions.chosen_genes)
+##mutated_chosen_genes = mutation(solutions, percent_mutation=5)
+#print(mutated_chosen_genes)
+#sols_density_dict, sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
+#print(sols_density_dict)
+#print(sols_prob_dict)
+#mated_density_dict, sols_after_mating = mating(mutated_chosen_genes, sols_prob_dict, network)
+#print(mated_density_dict)
+#print(sols_after_mating)
+
+'''
 loci_indices = sol_locus_tomutate(solutions, percent_mutation=5)
 chosen_genes = solutions.chosen_genes
 # get candidate genes from the same locus from solutions.loci_set
@@ -79,3 +109,4 @@ for itr_sol in range(1,num_solutions+1):
     sols_after_mating[itr_sol] = mating_res # {sol1:mated_genes,...}
     mating_res_density = compute_density(mating_res, network)
 print(sols_after_mating)
+'''
