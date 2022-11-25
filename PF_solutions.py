@@ -5,18 +5,22 @@ import pandas as pd
 class PFsolutions():
     '''
     If no solutions are provided. 
-    This class take information of the default loci set and generate example solutions 
+    This class takes information of the default loci set and generates example solutions 
     If a population of solutions is provided, it stores solutions info and gene scores 
     as well as output the final scored solution
     '''
-    def __init__(self, loci_candidate_dict, annotated_candidate_dict, chosen_genes = []):
+    def __init__(self, loci_candidate_dict, annotated_candidate_dict, chosen_genes = [], num_sols = 5000):
         '''
         Object attributes initialization: loci set, chosen genes, gene scores, 
         final gene scores and final solution dataframe
         '''
         self.loci_set = loci_candidate_dict 
         self.annotated_candidate_dict = annotated_candidate_dict
-        self.chosen_genes = chosen_genes # empty list by default
+        if chosen_genes == []:
+            chosen_genes = [[] for i in range(num_sols)]
+        self.chosen_genes = dict(zip([k for k in range(1,num_sols+1)], chosen_genes))
+        #self.chosen_genes = dict(zip([k for k in range(1,len(chosen_genes)+1)], chosen_genes))
+        #self.chosen_genes = chosen_genes # empty list by default
         # combine all genes from different loci
         candidate_genes = list(itertools.chain.from_iterable(loci_candidate_dict.values()))
         self.gene_scores = {gene: [0] for gene in candidate_genes} # dict = {gene1:[score_sol1, score_sol2,...],gene2:...}
@@ -25,7 +29,7 @@ class PFsolutions():
         
     def generate_chosen_genes(self,iteration=5000):
         '''
-        This method generates chosen genes when a population of solutions is now provided
+        This method generates chosen genes when a population of solutions is not provided
         '''
         chosen_genes = []
         for itr in range(iteration):
