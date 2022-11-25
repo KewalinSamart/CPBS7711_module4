@@ -27,7 +27,9 @@ def compute_density(chosen_replaced, network):
     #density = 0
     network_interactions = network.network_interactions
     #subnetwork_interactions = [element for element in gene_pairs if element in network_interactions]
-    subnetwork_interactions = list(set(gene_pairs) & set(network_interactions))
+    #subnetwork_interactions = list(set(gene_pairs) & set(network_interactions))
+    #subnetwork_interactions = set.intersection(set(gene_pairs), set(network_interactions))
+    subnetwork_interactions=set(gene_pairs).intersection(network_interactions)
     density = len(subnetwork_interactions)
     #for gene_pair in gene_pairs:
         #edge_count = network.find_edge(gene_pair[0], gene_pair[1])
