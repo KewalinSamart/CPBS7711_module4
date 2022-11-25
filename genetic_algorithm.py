@@ -2,6 +2,7 @@ import random
 from PF_solutions import *
 from scoring_genes import *
 from network import * 
+import time
 
 # start with an initial population of 5,000 solutions
 # loci_candidate_dict,  annotated_candidate_dict = get_loci_candidate_genes(loci_genes_filename = "toy_loci_set.txt")
@@ -21,40 +22,48 @@ def mutation(solutions, percent_mutation=5):
     # dict = {locus0:[sol_indices -- 5% of 5,000 = 250 distinct indices]}
     # sol_indices are numbers between 1 and 5,000
     loci_indices = sol_locus_tomutate(solutions, percent_mutation)
-    chosen_genes = solutions.chosen_genes
+    #print(loci_indices)
+    chosen_genes = solutions.chosen_genes # {1:[chosen_genes],...,N:[chosen_genes]}
     # get candidate genes from the same locus from solutions.loci_set
     for locus in range(len(solutions.loci_set.keys())):
         locus_candidates = solutions.loci_set[locus]
         #print(locus_candidates)
         for sol_index in loci_indices[locus]:
-            current_chosen_gene = chosen_genes[sol_index-1][locus]
+            #print(locus)
+            #print(solutions.chosen_genes)
+            current_chosen_gene = chosen_genes[sol_index][locus]
             locus_candiates_removed = list(set(locus_candidates) - set(current_chosen_gene))
             mutated_gene = random.choices(locus_candiates_removed,k=1)[0]
-            chosen_genes[sol_index-1][locus] = mutated_gene
+            chosen_genes[sol_index][locus] = mutated_gene
     # {sol_indices:[[chosen genes at locus0],...,[chosen genes at locus11]]}
-    mutated_chosen_genes = dict(zip([k for k in range(1,len(chosen_genes)+1)], chosen_genes))
-    return mutated_chosen_genes 
+    mutated_chosen_genes = dict(zip([k for k in range(1,len(chosen_genes)+1)], list(chosen_genes.values())))
+    return mutated_chosen_genes
 
 def compute_sol_prob(mutated_chosen_genes, network):
     # dict to store normalized cubed density for each subnetwork 
     # where keys: solution numbers, values: normalized probabilities in range(0,1)
     sols_prob_dict = {}
-    for sol_index in range(1,len(mutated_chosen_genes)+1):
+    for sol_index in mutated_chosen_genes.keys():
         sol_mutated_chosen = mutated_chosen_genes[sol_index]
+        #print(sol_index)
+        tic = time.perf_counter()
         density = compute_density(sol_mutated_chosen, network)
+        toc = time.perf_counter()
+        #print("time spent computing density: ",toc - tic)
+        #if density != 0:
         sols_prob_dict[sol_index] = density**3
     sum_cubed_density = sum(sols_prob_dict.values())
     sols_prob_dict = {sol_index: cubed_density / sum_cubed_density for sol_index,cubed_density in sols_prob_dict.items()}
     return sols_prob_dict
 
 def mating(mutated_chosen_genes, sols_prob_dict, network):
-    num_solutions = len(sols_prob_dict)
+    tic = time.perf_counter()
     solution_indices = list(sols_prob_dict.keys())
     weights_prob = list(sols_prob_dict.values())
     # for each iteration, randomly select a pair of sols for num_solutions times
     sols_after_mating = {}
     mated_density_dict = {}
-    for itr_sol in range(1,num_solutions+1): 
+    for sol in solution_indices: 
         # choose a pair of solutions: list of two sol indices
         random_sol_pair = random.choices(solution_indices,weights=weights_prob,k=2)
         # sampled_sol_pairs.append(random_sol_pair) # [[sol1,sol10],...,[sol500,sol29]]
@@ -66,9 +75,12 @@ def mating(mutated_chosen_genes, sols_prob_dict, network):
             selected_gene = mutated_chosen_genes[sol_choice[0]][locus]
             mating_res.append(selected_gene)
         density = compute_density(mating_res, network)
-        mated_density_dict[itr_sol] = density
-        sols_after_mating[itr_sol] = mating_res # {sol1:mated_genes,...}
-    
+        mated_density_dict[sol] = density
+        sols_after_mating[sol] = mating_res # {sol1:mated_genes,...}
+        #print("finished mating for solution ",sol)
+    toc = time.perf_counter()
+    print("time spent mating solutions: ",toc - tic)
+
     return mated_density_dict, sols_after_mating
 
 def genetic_algorithm(solutions, network, percent_mutation=5):
@@ -78,6 +90,7 @@ def genetic_algorithm(solutions, network, percent_mutation=5):
         # the recurring procedures of the mutation and mating steps
         # mutation step
         mutated_chosen_genes = mutation(solutions, percent_mutation)
+        #solutions = mutation(solutions, percent_mutation)
         print("Mutation step completed; iteration: ", i)
         # mating step 
         sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
@@ -92,8 +105,8 @@ def genetic_algorithm(solutions, network, percent_mutation=5):
         if ((new_gen_avgdensity - prev_gen_avgdensity) < 0.005*prev_gen_avgdensity):
             break
         else:
-            solutions.chosen_genes = list(sols_after_mating.values())
-            prev_gen_avgdensity = new_gen_avgdensity 
+            solutions.chosen_genes = sols_after_mating
+            prev_gen_avgdensity = new_gen_avgdensity  
             continue
     return density_list, mated_density_dict, solutions
     
