@@ -43,17 +43,20 @@ def compute_sol_prob(mutated_chosen_genes, network):
     # dict to store normalized cubed density for each subnetwork 
     # where keys: solution numbers, values: normalized probabilities in range(0,1)
     sols_prob_dict = {}
+    tic1 = time.perf_counter()
     for sol_index in mutated_chosen_genes.keys():
         sol_mutated_chosen = mutated_chosen_genes[sol_index]
         #print(sol_index)
         tic = time.perf_counter()
         density = compute_density(sol_mutated_chosen, network)
         toc = time.perf_counter()
-        #print("time spent computing density: ",toc - tic)
+        print("time spent computing density: ",toc - tic)
         #if density != 0:
         sols_prob_dict[sol_index] = density**3
     sum_cubed_density = sum(sols_prob_dict.values())
     sols_prob_dict = {sol_index: cubed_density / sum_cubed_density for sol_index,cubed_density in sols_prob_dict.items()}
+    toc1 = time.perf_counter()
+    print("time spent computing probs for the solutions: ",toc1 - tic1)
     return sols_prob_dict
 
 def mating(mutated_chosen_genes, sols_prob_dict, network):
@@ -65,14 +68,14 @@ def mating(mutated_chosen_genes, sols_prob_dict, network):
     mated_density_dict = {}
     for sol in solution_indices: 
         # choose a pair of solutions: list of two sol indices
-        random_sol_pair = random.choices(solution_indices,weights=weights_prob,k=2)
-        # sampled_sol_pairs.append(random_sol_pair) # [[sol1,sol10],...,[sol500,sol29]]
+        random_sol_pair = np.random.choice(solution_indices,size=2,replace=False, p=weights_prob)
+        #random_sol_pair = random.sample(solution_indices,weights=weights_prob,k=2)
         # get mutated genes of all the loci in the two random sols
         mating_res = []
         for locus in range(len(mutated_chosen_genes[1])):
             # choose which solution to get a representative gene from 
-            sol_choice = random.choices(random_sol_pair,k=1)
-            selected_gene = mutated_chosen_genes[sol_choice[0]][locus]
+            choice_index = random.randint(0,1)
+            selected_gene = mutated_chosen_genes[random_sol_pair[choice_index]][locus]
             mating_res.append(selected_gene)
         density = compute_density(mating_res, network)
         mated_density_dict[sol] = density
