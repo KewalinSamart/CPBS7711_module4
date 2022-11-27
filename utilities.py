@@ -1,6 +1,7 @@
 import pandas as pd 
+import numpy as np
 
-def read_in_solutions(chosen_genes_filename, sep='\t'):
+def read_in_solutions(chosen_genes_filename, num_sols = 5000, sep='\t'):
     '''
     This function reads in given solutions file in the following format 
     # solutions: 0       1       2      ...
@@ -11,6 +12,8 @@ def read_in_solutions(chosen_genes_filename, sep='\t'):
     and annotated dictionary of candidate genes and loci {gene1: locus2,...}
     '''
     chosen_genes_df = pd.read_table(chosen_genes_filename, delimiter=sep)
+    if num_sols < 5000:
+        chosen_genes_df = chosen_genes_df.sample(n = num_sols)
     chosen_genes = list(chosen_genes_df.values.tolist())
     loci_candidate_dict = {}
     annotated_candidate_dict = {}
