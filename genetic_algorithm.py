@@ -47,10 +47,10 @@ def compute_sol_prob(mutated_chosen_genes, network):
     for sol_index in mutated_chosen_genes.keys():
         sol_mutated_chosen = mutated_chosen_genes[sol_index]
         #print(sol_index)
-        tic = time.perf_counter()
+        #tic = time.perf_counter()
         density = compute_density(sol_mutated_chosen, network)
-        toc = time.perf_counter()
-        print("time spent computing density: ",toc - tic)
+        #toc = time.perf_counter()
+        #print("time spent computing density: ",toc - tic)
         #if density != 0:
         sols_prob_dict[sol_index] = density**3
     sum_cubed_density = sum(sols_prob_dict.values())
@@ -89,15 +89,18 @@ def mating(mutated_chosen_genes, sols_prob_dict, network):
 def genetic_algorithm(solutions, network, percent_mutation=5):
     prev_gen_avgdensity = 0.0 
     density_list =[prev_gen_avgdensity]
+    mated_density_dict = {}
     for i in range(100):
         # the recurring procedures of the mutation and mating steps
         # mutation step
+        prev_mated_density_dict = mated_density_dict.copy()
         mutated_chosen_genes = mutation(solutions, percent_mutation)
         #solutions = mutation(solutions, percent_mutation)
         print("Mutation step completed; iteration: ", i)
         # mating step 
         sols_prob_dict = compute_sol_prob(mutated_chosen_genes, network)
         mated_density_dict, sols_after_mating = mating(mutated_chosen_genes, sols_prob_dict, network)
+        
         print("Mating step completed; iteration: ", i)
         print("Parent generation avg density: ",prev_gen_avgdensity)
         # compute average density of the new generation after applying GA
@@ -111,6 +114,6 @@ def genetic_algorithm(solutions, network, percent_mutation=5):
             solutions.chosen_genes = sols_after_mating
             prev_gen_avgdensity = new_gen_avgdensity  
             continue
-    return density_list, mated_density_dict, solutions
+    return density_list, prev_mated_density_dict, solutions
     
 
