@@ -2,6 +2,7 @@ from network import *
 from PF_solutions import *
 from utilities import * 
 import numpy as np
+import time
 
 def gene_substitution(locus_index, itr_gene, solutions, sol_index):
     '''
@@ -29,8 +30,9 @@ def compute_density(chosen_replaced, network):
     #subnetwork_interactions = [element for element in gene_pairs if element in network_interactions]
     #subnetwork_interactions = list(set(gene_pairs) & set(network_interactions))
     #subnetwork_interactions = set.intersection(set(gene_pairs), set(network_interactions))
-    subnetwork_interactions=set(gene_pairs).intersection(network_interactions)
-    density = len(subnetwork_interactions)
+    #subnetwork_interactions = set(gene_pairs).intersection(network_interactions)
+    #subnetwork_interactions = set(network_interactions).intersection(gene_pairs)
+    density = len(set(gene_pairs).intersection(network_interactions))
     #for gene_pair in gene_pairs:
         #edge_count = network.find_edge(gene_pair[0], gene_pair[1])
         #density = density + edge_count
