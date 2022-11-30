@@ -5,7 +5,7 @@ python3 prioritize_genes.py -solutions <solutions file name> -num_loci <number o
 ```
 
 ### Arguments
-- `-solutions` (string) solutions file name; set to `toy_loci_set.txt` by default
+- `-loci_set` (string) solutions file name; set to `toy_loci_set.txt` by default
 - `-num_loci` (int) number of loci; set to `12` by default 
 - `-network`  (string) network file name txt (tab separated) file containing gene-gene interaction network (undirected; can be weighted/unweighted, but - weights will not be used in gene scoring); set to `STRING_network.txt` by default
 - `-bins` (int) number of bins for gene binning to generate random loci set; set to `35` by default
