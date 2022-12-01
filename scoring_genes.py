@@ -1,119 +1,90 @@
-from network import *
-from PF_solutions import *
-from utilities import * 
+import json
+import random 
 import numpy as np
-import time
+import networkx as nx 
+import matplotlib.pyplot as plt
+from utilities import *
+from network import *
+import pandas as pd
 
-def gene_substitution(locus_index, itr_gene, solutions, sol_index):
+def generate_loci_colors(num_loci):
     '''
-    Given locus, individual gene, solutions, and solution index,
-    perform gene substitution procedure and return chosen genes with the replacement
+    Given a number of loci, generates a random set of colors (one color for each locus)
     '''
-    # get the all chosen genes in all the solutions
-    sol_chosen_genes = solutions.chosen_genes[sol_index]
-    # get the chosen gene at the specified index of the specified solution
-    locus_chosen_gene = sol_chosen_genes[locus_index]
-    chosen_replaced = list(map(lambda x: x.replace(locus_chosen_gene, itr_gene), sol_chosen_genes))
+    if num_loci == None: # if not given 
+        num_loci = 12
+    random_colors =["#"+''.join([random.choice('0123456789ABCDEF') for i in range(6)])for j in range(num_loci)]
+    loci_index = np.arange(0,num_loci,1)
+    loci_colors = dict(zip(loci_index,random_colors))
 
-    return chosen_replaced
+    return loci_colors
 
-def compute_density(chosen_replaced, network):
+def generate_networkx_object(final_sol, network_df, loci_colors):
     '''
-    Given chosen genes with replacement, and a network
-    density formula: edge counts
-    count edges connected among genes in chosen_replaced
-    get the number of connections from network (direct neighbors)
+    Given a final solution (final_sol), network dataframe (network_df),
+    and generated loci colors (loci_colors), creates a networkx object for visualization and 
+    outputs node attributes
     '''
-    gene_pairs = [(a, b) for idx, a in enumerate(chosen_replaced) for b in chosen_replaced[idx + 1:]]
-    #density = 0
-    network_interactions = network.network_interactions
-    #subnetwork_interactions = [element for element in gene_pairs if element in network_interactions]
-    #subnetwork_interactions = list(set(gene_pairs) & set(network_interactions))
-    #subnetwork_interactions = set.intersection(set(gene_pairs), set(network_interactions))
-    #subnetwork_interactions = set(gene_pairs).intersection(network_interactions)
-    #subnetwork_interactions = set(network_interactions).intersection(gene_pairs)
-    density = len(set(gene_pairs).intersection(network_interactions))
-    #for gene_pair in gene_pairs:
-        #edge_count = network.find_edge(gene_pair[0], gene_pair[1])
-        #density = density + edge_count
+    genes = list(final_sol.gene.unique())   
+    subset_network1 = network_df[network_df.gene1.isin(genes)]
+    subset_network2 = subset_network1[subset_network1.gene2.isin(genes)]
+    subset_network = subset_network2.dropna()
+    G = nx.from_pandas_edgelist(subset_network, 'gene1', 'gene2', "weight")
 
-    return density
+    node_df = pd.DataFrame(list(G.nodes),columns=['gene'])
+    node_attr_df = pd.merge(node_df, final_sol, on ='gene')
+    node_attr_df['color'] = node_attr_df['locus'].apply(set_value, args =(loci_colors, ))
+    locus_attr = dict(zip(node_attr_df.gene, node_attr_df.locus))
+    score_attr = dict(zip(node_attr_df.gene, node_attr_df.score))
+    color_attr = dict(zip(node_attr_df.gene, node_attr_df.color))
+    nx.set_node_attributes(G, locus_attr , "locus")
+    nx.set_node_attributes(G, score_attr , "score")
+    nx.set_node_attributes(G, color_attr , "color")
 
-def empty_locus_case(locus_index, chosen_replaced, network):
-    '''
-    Given locus index, chosen genes with replacement, and network 
-    Count edges among the chosen genes where the given locus is removed (directed neigbors)
-    '''
-    # remove the indicated locus completely from the solution
-    del chosen_replaced[locus_index]
-    gene_pairs = [(a, b) for idx, a in enumerate(chosen_replaced) for b in chosen_replaced[idx + 1:]]
-    empty_locus_density = 0
-    for gene_pair in gene_pairs:
-        edge_count = network.find_edge(gene_pair[0], gene_pair[1])
-        empty_locus_density  = empty_locus_density + edge_count
+    return G, node_attr_df
 
-    return empty_locus_density 
-
-def score_gene(locus_index, chosen_replaced, network):
+def json_cytoscape(G, jsoutput_name="finalsol.json"):
     '''
-    Given locus index, chosen genes with replacement, and network,
-    compute and return gene score = |edge count(gene sub)-edge count(empty locus case)|
-    '''
-    density = compute_density(chosen_replaced, network)
-    empty_locus_density = empty_locus_case(locus_index, chosen_replaced, network)
-    gene_score = np.abs(density - empty_locus_density)
-
-    return gene_score
-
-def get_final_solution(solutions_filename = None, network_filename = None, output_dir=None):
-    '''
-    Given solutions file name, network file name, and out put directory,
-    Compute and return the final scored solution
-    Note: use example inputs by default 
+    Given G an networkx graph object
+    Exports networkx object to .json for visualization using cytoscape
     ''' 
-    # by default
-    if solutions_filename == None:
-        loci_candidate_dict,  annotated_candidate_dict = get_loci_candidate_genes()
-        # create Prix fixe solutions object
-        solutions = PFsolutions(loci_candidate_dict, annotated_candidate_dict)
-        # randomly generate chosen genes for each solution (one gene per locus)
-        solutions.generate_chosen_genes()
-    # solutions given
-    else:
-         # create Prix fixe solutions object
-        chosen_genes, loci_candidate_dict, annotated_candidate_dict = read_in_solutions(chosen_genes_filename = solutions_filename)
-        solutions = PFsolutions(loci_candidate_dict, annotated_candidate_dict, chosen_genes)
+    json_data = nx.cytoscape_data(G) 
+    with open(jsoutput_name, "w") as outfile:
+        json.dump(json_data, outfile)
+
+def kamada_kawai_viz(G, node_attr_df):
+    '''
+    Given G an networkx graph object and a dataframe containing network attributes
+    Creates and saves final solution visualization: kamada_kawai_layout
+    '''
+    scores = node_attr_df.score
+    plt.figure(1, figsize=(150, 80), dpi=40)
+    nx.draw(G, node_color=node_attr_df.color, font_size=20, pos=nx.kamada_kawai_layout(G),with_labels = True, node_size=[scores[k]*500 for k in scores],edge_color="grey")
+    plt.savefig("finalsol_kkviz.png")   
+
+def circular_viz(G, node_attr_df):
+    '''
+    Creates and saves final solution visualization: circular_layout
+    '''
+    scores = node_attr_df.score
+    plt.figure(1, figsize=(50, 25), dpi=50)
+    nx.draw(G, node_color=node_attr_df.color, font_size=50, pos=nx.circular_layout(G),with_labels = True, node_size=[scores[k]*1000 for k in scores],edge_color="grey")
+    plt.savefig("example_finalsol_ccviz.png")
     
-     # create network object
-    if network_filename == None:
-        network = Network("STRING_network.txt")
+def finalsol_viz(final_sol, network_df, num_loci, score_cutoff):
+    '''
+    Creates and saves final solution visualization for both layout types above
+    '''
+    loci_colors = generate_loci_colors(num_loci)
+    G, node_attr_df = generate_networkx_object(final_sol, network_df, loci_colors)
+    json_cytoscape(G)
+    kamada_kawai_viz(G, node_attr_df)
+    if score_cutoff != None:
+        final_sol = final_sol[final_sol.score > score_cutoff]
     else:
-        network = Network(network_filename)
+        final_sol = final_sol[final_sol.score > 0.25]
+    G_sub, node_attr_df_sub = generate_networkx_object(final_sol, network_df, loci_colors)
+    json_cytoscape(G_sub)
+    circular_viz(G_sub, node_attr_df_sub)
 
-    # get number of solutions = number of all possible combinations of chosen genes
-    num_sols = len(solutions.chosen_genes)
-    print("Number of input/example solutions: ",num_sols)
-    # get the generated chosen genes
-    chosen_genes = solutions.chosen_genes
-    # iterate through one solution at a time 
-    for sol_index in range(1,num_sols):
-        # iterate through one locus at a time 
-        for locus in solutions.loci_set.keys():
-            locus_gene_candidates = solutions.loci_set[locus] 
-            locus_chosen_gene = solutions.get_sol_chosen_genes(sol_index)
-            locus_itr_genes = list(set(locus_gene_candidates) - set(locus_chosen_gene))
-            # calculate score for each candidate gene
-            for itr_gene in locus_itr_genes:
-                chosen_replaced = gene_substitution(locus, itr_gene, solutions, sol_index)
-                gene_score = score_gene(locus, chosen_replaced, network)
-                solutions.update_gene_scores(itr_gene, gene_score)
-    # average scores across every solution to get final gene scores
-    solutions.compute_final_scores()
-    # finalize the result dataframe -- add loci annotation
-    solutions.finalize_final_sol()
-    # output the final solution dataframe
-    if output_dir==None:
-        output_dir='example_result/final_solution.txt'
-    solutions.output_final_sol(output_dir)
-
-    return solutions.final_sol_df
+    

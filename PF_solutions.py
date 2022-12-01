@@ -11,6 +11,10 @@ class PFsolutions():
     '''
     def __init__(self, loci_candidate_dict, annotated_candidate_dict, chosen_genes = [], num_sols = 5000):
         '''
+        Given loci_candidate_dict a dictionary with keys: loci, values: list of genes
+              annotated_candidate_dict a dictionaty with keys: genes, values: locus indices
+              chosen_genes = a list of lists of genes
+              num_sols = number of solutions; set to 5,000 by default
         Object attributes initialization: loci set, chosen genes, gene scores, 
         final gene scores and final solution dataframe
         '''
@@ -29,6 +33,7 @@ class PFsolutions():
         
     def generate_chosen_genes(self,iteration=5000):
         '''
+        Given iteration, number of solutions to create; 5000 by default
         This method generates chosen genes when a population of solutions is not provided
         '''
         chosen_genes = []
@@ -43,6 +48,7 @@ class PFsolutions():
 
     def get_sol_chosen_genes(self, sol_index):
         '''
+        Given sol_index, a solution index
         This method gets the corresponding tuple in chosen_genes list 
         (at position sol_index-1 as sol_index starts with 1)
         '''
@@ -52,6 +58,7 @@ class PFsolutions():
     
     def update_gene_scores(self, gene, score):
         '''
+        Given a gene name (string) and score (float)
         This method updates list storing gene scores
         '''
         if gene in self.gene_scores.keys():

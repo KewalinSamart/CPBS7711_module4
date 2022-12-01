@@ -9,7 +9,7 @@ import pandas as pd
 
 def generate_loci_colors(num_loci):
     '''
-    Given a number of loci, generate a random set of colors (one color for each locus)
+    Given a number of loci, generates a random set of colors (one color for each locus)
     '''
     if num_loci == None: # if not given 
         num_loci = 12
@@ -22,8 +22,8 @@ def generate_loci_colors(num_loci):
 def generate_networkx_object(final_sol, network_df, loci_colors):
     '''
     Given a final solution (final_sol), network dataframe (network_df),
-    and generated loci colors (loci_colors), create a networkx object for visualization and 
-    output node attributes
+    and generated loci colors (loci_colors), creates a networkx object for visualization and 
+    outputs node attributes
     '''
     genes = list(final_sol.gene.unique())   
     subset_network1 = network_df[network_df.gene1.isin(genes)]
@@ -45,7 +45,8 @@ def generate_networkx_object(final_sol, network_df, loci_colors):
 
 def json_cytoscape(G, jsoutput_name="finalsol.json"):
     '''
-    Export networkx object to .json for visualization using cytoscape
+    Given G an networkx graph object
+    Exports networkx object to .json for visualization using cytoscape
     ''' 
     json_data = nx.cytoscape_data(G) 
     with open(jsoutput_name, "w") as outfile:
@@ -53,7 +54,8 @@ def json_cytoscape(G, jsoutput_name="finalsol.json"):
 
 def kamada_kawai_viz(G, node_attr_df):
     '''
-    Create and save final solution visualization: kamada_kawai_layout
+    Given G an networkx graph object and a dataframe containing network attributes
+    Creates and saves final solution visualization: kamada_kawai_layout
     '''
     scores = node_attr_df.score
     plt.figure(1, figsize=(150, 80), dpi=40)
@@ -62,7 +64,7 @@ def kamada_kawai_viz(G, node_attr_df):
 
 def circular_viz(G, node_attr_df):
     '''
-    Create and save final solution visualization: circular_layout
+    Creates and saves final solution visualization: circular_layout
     '''
     scores = node_attr_df.score
     plt.figure(1, figsize=(50, 25), dpi=50)
@@ -71,7 +73,7 @@ def circular_viz(G, node_attr_df):
     
 def finalsol_viz(final_sol, network_df, num_loci, score_cutoff):
     '''
-    Create and save final solution visualization for both layout types above
+    Creates and saves final solution visualization for both layout types above
     '''
     loci_colors = generate_loci_colors(num_loci)
     G, node_attr_df = generate_networkx_object(final_sol, network_df, loci_colors)
@@ -84,25 +86,5 @@ def finalsol_viz(final_sol, network_df, num_loci, score_cutoff):
     G_sub, node_attr_df_sub = generate_networkx_object(final_sol, network_df, loci_colors)
     json_cytoscape(G_sub)
     circular_viz(G_sub, node_attr_df_sub)
-
-def top_scoring_netsviz(solutions_filename, network_filename, num_topscoring = 10, output_dir='topscoring_networks'):
-    chosen_genes_df = pd.read_table(solutions_filename, delimiter='\t')
-    # get the last 10 rows
-    top_scoring_nets = chosen_genes_df.iloc[-num_topscoring:]
-    # drop density column
-    top_scoring_nets = top_scoring_nets.drop('density', axis=1, inplace=True)
-    chosen_genes = list(top_scoring_nets.values.tolist())
-    network = Network(network_filename)
-    network_interactions = network.network_interactions
-    for index in reversed(range(1,len(chosen_genes)+1)):
-        gene_set = chosen_genes[index]
-        gene_pairs = [(a, b) for idx, a in enumerate(gene_set) for b in gene_set[idx + 1:]]
-        topscoring_interactions = set(gene_pairs).intersection(network_interactions)
-        # get subset of the network interactions dictionary
-        topscoring_interactions = { gene_pair:weight for gene_pair,weight in network_interactions.items() if gene_pair in gene_pairs}
-        # turn dict to dataframe
-        topscoring_df = pd.DataFrame(topscoring_interactions.items(), columns=['gene1', 'gene2', 'weight'])
-        topscoring_df.to_csv("{}/GAoptimized_topscoring_sol{}.txt".format(output_dir,str(index)), header=['gene1', 'gene2', 'weight'], index=None, sep='\t', mode='a')
-
 
     
